@@ -1,0 +1,1446 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SABR - Панель официанта</title>
+
+<!-- SheetJS (xlsx) CDN -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<style>
+    /* Стили для кнопки выбора стола */
+  .choose-table-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(90deg, var(--brown), #5a3a3a);
+    color: var(--beige);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(75,46,46,0.3);
+    margin-bottom: 10px;
+  }
+
+  /* Модальное окно выбора стола */
+  .table-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .table-btn {
+    padding: 16px;
+    border-radius: 10px;
+    border: 2px solid var(--gold);
+    background: var(--card-bg);
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .table-btn:hover {
+    background: linear-gradient(90deg, rgba(207,175,112,0.1), rgba(207,175,112,0.2));
+    transform: scale(1.05);
+  }
+  :root{
+    --brown: #4B2E2E;
+    --gold: #CFAF70;
+    --beige: #F5F5DC;
+    --card-bg: rgba(255,255,255,0.95);
+    --muted: #6b5b55;
+    --glass: rgba(255,255,255,0.6);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(160deg, #fffaf0 0%, #f3efe8 50%, #efe6db 100%);
+    color: var(--brown);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:24px;
+  }
+  .container{
+    max-width:1100px;
+    margin:0 auto;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+  }
+
+  header{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    grid-column: 1 / -1;
+  }
+  .brand{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .logo{
+    width:64px;height:64px;border-radius:12px;
+    background: linear-gradient(135deg,var(--brown),#3e2929);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--beige);font-weight:700;font-size:20px;
+    box-shadow:0 6px 18px rgba(75,46,46,0.18);
+  }
+  h1{margin:0;font-size:20px}
+  .sub{font-size:13px;color:var(--muted)}
+
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn{
+    background:var(--brown);
+    color:var(--beige);
+    border:none;
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    box-shadow:0 6px 14px rgba(75,46,46,0.12);
+    font-weight:600;
+  }
+  .btn.secondary{
+    background:transparent;color:var(--brown);border:1px solid rgba(75,46,46,0.08);
+  }
+  .pin-btn{background:linear-gradient(90deg,var(--gold),#dfb86d); color:var(--brown)}
+
+  /* categories - UPDATED */
+  .cats{
+    display:flex;
+    gap:12px;
+    margin:5px 0 15px 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 12px 5px;
+    position: sticky;
+    top: 10px;
+    z-index: 10;
+    background: rgba(255, 250, 240, 0.9);
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+    grid-column: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) transparent;
+  }
+  .cats::-webkit-scrollbar {
+    height: 6px;
+  }
+  .cats::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .cats::-webkit-scrollbar-thumb {
+    background-color: var(--gold);
+    border-radius: 3px;
+  }
+  .cat{
+    padding:12px 18px;
+    border-radius:999px;
+    background:linear-gradient(180deg,var(--beige),rgba(255,255,255,0.9));
+    border:1px solid rgba(75,46,46,0.06);
+    cursor:pointer;
+    font-weight:600;
+    color:var(--brown);
+    box-shadow: 0 6px 12px rgba(203,175,112,0.06);
+    transition: all 0.3s ease;
+    font-size: 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cat.active{box-shadow:0 8px 18px rgba(203,175,112,0.18);transform:translateY(-3px); background:linear-gradient(180deg,var(--gold),#dfb86d); color: var(--brown);}
+
+  /* grid - UPDATED margin */
+  .category-section {
+    margin: 20px 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--gold);
+    scroll-margin-top: 100px;
+  }
+  .category-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--brown);
+    margin: 0;
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+  }
+  .category-title:before {
+    content: "";
+    display: block;
+    width: 16px;
+    height: 16px;
+    background: var(--gold);
+    border-radius: 50%;
+    margin-right: 12px;
+  }
+  
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+    margin-bottom: 30px;
+  }
+  .card{
+    background:var(--card-bg);
+    border-radius:14px;padding:12px;
+    box-shadow: 0 10px 30px rgba(75,46,46,0.06);
+    display:flex;gap:12px;align-items:flex-start;
+    transition:transform .18s ease, box-shadow .18s ease;
+    border:1px solid rgba(75,46,46,0.03);
+    position: relative;
+  }
+  .card:hover{transform:translateY(-6px); box-shadow:0 20px 40px rgba(75,46,46,0.09);}
+  .thumb{width:96px;height:72px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#eee;display:flex;align-items:center;justify-content:center}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .meta{flex:1}
+  .title{font-weight:700;margin:0 0 6px 0}
+  .desc{font-size:13px;color:var(--muted);margin:0 0 8px 0}
+  /* UPDATED: Price moved left */
+  .price-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 40px; /* Space for add button */
+  }
+  .price{
+    font-weight:800;
+    color:var(--brown);
+    font-size:16px;
+    margin-left: auto; /* This will push price to the left but keep it aligned */
+    padding-right: 10px; /* Add some space between price and button */
+  }
+  
+  /* Add to cart button */
+  .add-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--gold), #dfb86d);
+    border: none;
+    color: var(--brown);
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+  }
+  .add-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  }
+
+  /* Cart sidebar */
+  .cart-sidebar {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(75,46,46,0.06);
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+    max-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
+  }
+  .cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(75,46,46,0.1);
+  }
+  .cart-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .clear-cart {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: underline;
+  }
+  .cart-items {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 16px;
+  }
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(75,46,46,0.05);
+  }
+  .item-info {
+    flex: 1;
+  }
+  .item-name {
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    font-size: 14px;
+  }
+  .item-size {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .item-price {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+  }
+  .item-quantity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .quantity-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--brown);
+  }
+  .quantity-value {
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+  }
+  .cart-summary {
+    padding-top: 16px;
+    border-top: 2px solid var(--gold);
+  }
+  .cart-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  .checkout-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(90deg, var(--gold), #dfb86d);
+    color: var(--brown);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(203,175,112,0.3);
+  }
+  .checkout-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .empty-cart {
+    text-align: center;
+    color: var(--muted);
+    padding: 20px 0;
+    font-size: 14px;
+  }
+
+  footer{
+    margin-top:26px;padding-top:18px;border-top:1px dashed rgba(75,46,46,0.06);
+    display:flex;justify-content:space-between;align-items:center;
+    grid-column: 1 / -1;
+  }
+  .admin-area{display:flex;gap:8px;align-items:center}
+  .small{font-size:13px;color:var(--muted)}
+
+  /* responsive tweaks */
+  @media (max-width:900px){
+    .container {
+      grid-template-columns: 1fr;
+    }
+    .cart-sidebar {
+      position: static;
+      margin-top: 20px;
+      max-height: none;
+    }
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+    .controls{width:100%;justify-content:space-between}
+    .cats {
+      position: static;
+      overflow-x: auto;
+      padding-bottom: 5px;
+      justify-content: flex-start;
+    }
+    .cat {
+      white-space: nowrap;
+    }
+    .category-title {
+      font-size: 20px;
+    }
+    /* Responsive adjustment for price */
+    .price-container {
+      padding-right: 35px;
+    }
+  }
+
+  /* modal simple */
+  .modal-back{
+    position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,0.36);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal{
+    background:var(--beige);padding:18px;border-radius:12px;min-width:320px;max-width:90%;
+    box-shadow:0 20px 60px rgba(0,0,0,0.2);
+  }
+  .hidden{display:none}
+  .note{font-size:13px;color:var(--muted)}
+  .export-hint{font-size:12px;color:var(--muted)}
+  
+  /* Size selection modal */
+  .size-modal {
+    background: var(--beige);
+    padding: 24px;
+    border-radius: 14px;
+    min-width: 320px;
+    max-width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .size-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .size-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid rgba(75,46,46,0.1);
+    transition: all 0.2s ease;
+  }
+  .size-option:hover {
+    background: linear-gradient(90deg, rgba(207,175,112,0.1), rgba(207,175,112,0.2));
+    border-color: var(--gold);
+  }
+  .size-name {
+    font-weight: 600;
+  }
+  .size-price {
+    font-weight: 700;
+    color: var(--brown);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="logo">QR</div>
+      <div>
+        <h1>SABR - Панель официанта</h1>
+        <div class="sub">Добавляйте блюда в корзину и оформляйте заказы</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="pinBtn" class="btn pin-btn" title="Админ: загрузка по PIN">Загрузить Excel (PIN)</button>
+      <!-- Export button removed per request. If you need to restore, uncomment below. -->
+      <!-- <button id="exportBtn" class="btn secondary" title="Скачать HTML с текущим меню">Экспорт в HTML</button> -->
+    </div>
+  </header>
+
+  <div id="categories" class="cats"></div>
+
+  <main id="menu-content">
+    <!-- Content will be generated by JavaScript -->
+  </main>
+
+  <!-- Cart Sidebar -->
+  <aside class="cart-sidebar">
+    <div class="cart-header">
+      <h3 class="cart-title">Корзина</h3>
+      <button class="clear-cart" id="clearCart">Очистить</button>
+    </div>
+    <div class="cart-items" id="cartItems">
+      <div class="empty-cart">Корзина пуста</div>
+    </div>
+    <div class="cart-summary">
+      <!-- Добавленная кнопка выбора стола -->
+      <button class="choose-table-btn" id="chooseTableBtn">Выбрать стол</button>
+      
+      <div class="cart-total">
+        <span>Итого:</span>
+        <span id="cartTotal">0 сом</span>
+      </div>
+      <button class="checkout-btn" id="checkoutBtn" disabled>Оформить заказ</button>
+    </div>
+  </aside>
+
+
+  
+  <footer>
+    <div class="small">Демо-меню загружается, если нет сохранённых данных.</div>
+    <div class="admin-area">
+      <div class="note">PIN для импорта: <strong>1423</strong></div>
+    </div>
+  </footer>
+</div>
+
+<!-- Hidden file input -->
+<input id="fileInput" type="file" accept=".xlsx,.xls" class="hidden" />
+
+<!-- Modal for PIN -->
+<div id="modal" class="modal-back">
+  <div class="modal">
+    <h3>Ввод PIN</h3>
+    <p class="note">Введите PIN для загрузки Excel.</p>
+    <input id="pinInput" placeholder="PIN" style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);width:100%;margin:8px 0"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="pinCancel" class="btn secondary">Отмена</button>
+      <button id="pinOk" class="btn">Войти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for size selection -->
+<div id="sizeModal" class="modal-back">
+  <div class="size-modal">
+    <h3 id="sizeModalTitle">Выберите размер порции</h3>
+    <div class="size-options" id="sizeOptions">
+      <!-- Options will be added dynamically -->
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="sizeCancel" class="btn secondary">Отмена</button>
+    </div>
+  </div>
+</div>
+  <div id="tableModal" class="modal-back">
+    <div class="modal">
+      <h3>Выберите стол</h3>
+      <div class="table-grid" id="tableOptions">
+        <button class="table-btn" data-table="1">Стол 1</button>
+        <button class="table-btn" data-table="2">Стол 2</button>
+        <button class="table-btn" data-table="3">Стол 3</button>
+        <button class="table-btn" data-table="4">Стол 4</button>
+        <button class="table-btn" data-table="5">Стол 5</button>
+        <button class="table-btn" data-table="6">Стол 6</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="tableCancel" class="btn secondary">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/*
+  QR Menu — single-file app
+  - Parse Excel with SheetJS
+  - Save menu to localStorage under key 'qrMenuData'
+  - Export a standalone HTML containing embedded JSON
+  - PIN = '1423' to allow upload
+  - Added cart functionality for waitstaff
+  - Added size selection for items with multiple prices
+*/
+
+// --- Utilities ---
+const LS_KEY = 'qrMenuData_v1';
+const CART_KEY = 'qrMenuCart_v1';
+const PIN_CODE = '1423';
+
+function saveMenuToStorage(data){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }catch(e){
+    console.error('Ошибка сохранения в localStorage',e);
+  }
+}
+
+function loadMenuFromStorage(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){
+    console.error('Ошибка чтения localStorage',e);
+    return null;
+  }
+}
+
+function saveCartToStorage(cart){
+  try{
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  }catch(e){
+    console.error('Ошибка сохранения корзины в localStorage',e);
+  }
+}
+
+function loadCartFromStorage(){
+  try{
+    const raw = localStorage.getItem(CART_KEY);
+    if(!raw) return {};
+    return JSON.parse(raw);
+  }catch(e){
+    console.error('Ошибка чтения корзины из localStorage',e);
+    return {};
+  }
+}
+
+function showModal(){
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('pinInput').value='';
+  document.getElementById('pinInput').focus();
+}
+function hideModal(){ document.getElementById('modal').style.display='none'; }
+
+// --- Demo menu (used if nothing saved) ---
+const demoMenu = [
+  {category:'Роллы', title:'Классический ролл', desc:'Рис, нори, лосось, огурец', price:'450 / 600', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=60'},
+  {category:'Роллы', title:'Филадельфия', desc:'Рис, нори, сыр, лосось', price:'520 / 750', img:'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=60'},
+  {category:'Роллы', title:'Калифорния', desc:'Рис, нори, краб, авокадо', price:'480', img:'https://images.unsplash.com/photo-1559622214-5fef3c0d146d?auto=format&fit=crop&w=800&q=60'},
+  {category:'Пицца', title:'Пепперони', desc:'Томатный соус, моцарелла, пепперони', price:'750 / 950', img:'https://images.unsplash.com/photo-1548365328-6b0f1a8d1d67?auto=format&fit=crop&w=800&q=60'},
+  {category:'Пицца', title:'Маргарита', desc:'Томатный соус, моцарелла, базилик', price:'680', img:'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=60'},
+  {category:'Пицца', title:'Четыре сыра', desc:'Томатный соус, моцареlla, пармезан, горгонзола, рикотта', price:'790 / 990', img:'https://images.unsplash.com/photo-1595854341625-f33ee10dbf94?auto=format&fit=crop&w=800&q=60'},
+  {category:'Фаст-фуд', title:'Бургер с картофелем', desc:'Сочный говяжий котлета, соус, салат', price:'420', img:'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=60'},
+  {category:'Фаст-фуд', title:'Чизбургер', desc:'Говяжий котлета, сыр, соус', price:'380 / 500', img:'https://images.unsplash.com/photo-1553979459-d2229ba7433b?auto=format&fit=crop&w=800&q=60'},
+  {category:'Фаст-фуд', title:'Наггетсы', desc:'Куриные наггетсы с соусом', price:'320 / 450', img:'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=800&q=60'},
+  {category:'Напитки', title:'Лимонад мята', desc:'Свежая мята, лимон, сироп', price:'180', img:'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=60'},
+  {category:'Напитки', title:'Мохито', desc:'Светлый ром, лайм, мята, содовая', price:'320', img:'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=60'},
+  {category:'Напитки', title:'Сок апельсиновый', desc:'Свежевыжатый апельсиновый сок', price:'220 / 350', img:'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=800&q=60'},
+  {category:'Десерты', title:'Тирамису', desc:'Классический итальянский десерт', price:'320', img:'https://images.unsplash.com/photo-1551022377-4b06b5bbd57b?auto=format&fit=crop&w=800&q=60'},
+  {category:'Десерты', title:'Чизкейк', desc:'Нежный сырный десерт', price:'280 / 400', img:'https://images.unsplash.com/photo-1524351199678-941a58a3df50?auto=format&fit=crop&w=800&q=60'},
+  {category:'Десерты', title:'Мороженое', desc:'Ванильное мороженое с топпингом', price:'190', img:'https://images.unsplash.com/photo-1566566220367-af8d77269124?auto=format&fit=crop&w=800&q=60'}
+];
+
+// --- App state ---
+let menu = loadMenuFromStorage() || demoMenu.slice();
+let categories = [];
+let cart = loadCartFromStorage();
+let currentItemForSizeSelection = null;
+
+// --- Rendering ---
+const menuContent = document.getElementById('menu-content');
+const catsEl = document.getElementById('categories');
+const cartItemsEl = document.getElementById('cartItems');
+const cartTotalEl = document.getElementById('cartTotal');
+const checkoutBtn = document.getElementById('checkoutBtn');
+const clearCartBtn = document.getElementById('clearCart');
+const sizeModal = document.getElementById('sizeModal');
+const sizeModalTitle = document.getElementById('sizeModalTitle');
+const sizeOptions = document.getElementById('sizeOptions');
+
+function computeCategories(){
+  const s = new Set(menu.map(m => m.category || 'Прочее'));
+  categories = ['Все', ...Array.from(s)];
+}
+
+function renderCategories(){
+  catsEl.innerHTML='';
+  categories.forEach(cat=>{
+    const btn = document.createElement('button');
+    btn.className='cat' + (cat==='Все' ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => {
+      document.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Scroll to category
+      if (cat === 'Все') {
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Scroll to category section
+        const categoryElement = document.getElementById(`category-${cat.replace(/\s+/g, '-')}`);
+        if (categoryElement) {
+          const yOffset = -80; // Offset for sticky header
+          const y = categoryElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }
+    };
+    catsEl.appendChild(btn);
+  });
+}
+
+function renderMenu(){
+  menuContent.innerHTML = '';
+  
+  // Group items by category
+  const groupedItems = {};
+  menu.forEach(item => {
+    const category = item.category || 'Прочее';
+    if (!groupedItems[category]) {
+      groupedItems[category] = [];
+    }
+    groupedItems[category].push(item);
+  });
+  
+  // Render each category section
+  for (const category in groupedItems) {
+    // Create category section
+    const categorySection = document.createElement('div');
+    categorySection.className = 'category-section';
+    categorySection.id = `category-${category.replace(/\s+/g, '-')}`;
+    
+    const categoryTitle = document.createElement('h2');
+    categoryTitle.className = 'category-title';
+    categoryTitle.textContent = category;
+    
+    categorySection.appendChild(categoryTitle);
+    menuContent.appendChild(categorySection);
+    
+    // Create grid for items in this category
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    
+    // Render items in this category
+    groupedItems[category].forEach(item => {
+      const card = document.createElement('article');
+      card.className='card';
+      card.innerHTML = `
+        <div class="thumb"><img loading="lazy" src="${item.img||''}" alt="${escapeHtml(item.title)}" onerror="this.src='https://via.placeholder.com/120x90?text=Фото'"></div>
+        <div class="meta">
+          <div class="price-container">
+            <h4 class="title">${escapeHtml(item.title)}</h4>
+            <div class="price">${escapeHtml(item.price)} сом</div>
+          </div>
+          <p class="desc">${escapeHtml(item.desc || '')}</p>
+        </div>
+        <button class="add-btn" data-id="${escapeHtml(item.title)}">+</button>
+      `;
+      grid.appendChild(card);
+    });
+    
+    menuContent.appendChild(grid);
+  }
+  
+  // Add event listeners to add buttons
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const itemTitle = e.target.getAttribute('data-id');
+      const item = menu.find(i => i.title === itemTitle);
+      
+      if (!item) return;
+      
+      // Check if the price contains multiple options (with /)
+      if (item.price && item.price.includes('/')) {
+        showSizeSelectionModal(item);
+      } else {
+        addToCart(itemTitle);
+      }
+    });
+  });
+}
+
+// Show size selection modal
+function showSizeSelectionModal(item) {
+  currentItemForSizeSelection = item;
+  const prices = item.price.split('/').map(p => p.trim());
+  
+  sizeModalTitle.textContent = `Выберите размер для: ${item.title}`;
+  sizeOptions.innerHTML = '';
+  
+  // Add size options
+  const sizeNames = ['Маленькая', 'Стандартная', 'Большая'];
+  
+  prices.forEach((price, index) => {
+    const sizeOption = document.createElement('div');
+    sizeOption.className = 'size-option';
+    sizeOption.innerHTML = `
+      <div class="size-name">${sizeNames[index] || `Размер ${index + 1}`}</div>
+      <div class="size-price">${price} сом</div>
+    `;
+    
+    sizeOption.addEventListener('click', () => {
+      addToCartWithSize(item.title, price, sizeNames[index] || `Размер ${index + 1}`);
+      hideSizeModal();
+    });
+    
+    sizeOptions.appendChild(sizeOption);
+  });
+  
+  sizeModal.style.display = 'flex';
+}
+
+function hideSizeModal() {
+  sizeModal.style.display = 'none';
+  currentItemForSizeSelection = null;
+}
+
+// Add item to cart with specific size
+function addToCartWithSize(itemTitle, price, size) {
+  const item = menu.find(i => i.title === itemTitle);
+  if (!item) return;
+  
+  const cartKey = `${itemTitle} (${size})`;
+  const priceValue = parseInt(price) || 0;
+  
+  if (cart[cartKey]) {
+    cart[cartKey].quantity += 1;
+  } else {
+    cart[cartKey] = {
+      title: item.title,
+      price: priceValue,
+      quantity: 1,
+      size: size
+    };
+  }
+  
+  saveCartToStorage(cart);
+  renderCart();
+}
+
+// Add item to cart
+function addToCart(itemTitle) {
+  const item = menu.find(i => i.title === itemTitle);
+  if (!item) return;
+  
+  const priceValue = parseInt(item.price) || 0;
+  
+  if (cart[itemTitle]) {
+    cart[itemTitle].quantity += 1;
+  } else {
+    cart[itemTitle] = {
+      title: item.title,
+      price: priceValue,
+      quantity: 1
+    };
+  }
+  
+  saveCartToStorage(cart);
+  renderCart();
+}
+
+// Remove item from cart
+function removeFromCart(itemTitle) {
+  if (cart[itemTitle]) {
+    if (cart[itemTitle].quantity > 1) {
+      cart[itemTitle].quantity -= 1;
+    } else {
+      delete cart[itemTitle];
+    }
+    
+    saveCartToStorage(cart);
+    renderCart();
+  }
+}
+
+// Clear entire cart
+function clearCart() {
+  cart = {};
+  saveCartToStorage(cart);
+  renderCart();
+}
+
+// Render cart
+function renderCart() {
+  cartItemsEl.innerHTML = '';
+  
+  if (Object.keys(cart).length === 0) {
+    cartItemsEl.innerHTML = '<div class="empty-cart">Корзина пуста</div>';
+    cartTotalEl.textContent = '0 сом';
+    checkoutBtn.disabled = true;
+    return;
+  }
+  
+  let total = 0;
+  
+  Object.values(cart).forEach(item => {
+    const itemTotal = item.price * item.quantity;
+    total += itemTotal;
+    
+    const cartItem = document.createElement('div');
+    cartItem.className = 'cart-item';
+    
+    let itemInfoHtml = `
+      <h4 class="item-name">${escapeHtml(item.title)}</h4>
+    `;
+    
+    if (item.size) {
+      itemInfoHtml += `<div class="item-size">${escapeHtml(item.size)}</div>`;
+    }
+    
+    itemInfoHtml += `<p class="item-price">${item.price} сом × ${item.quantity} = ${itemTotal} сом</p>`;
+    
+    cartItem.innerHTML = `
+      <div class="item-info">
+        ${itemInfoHtml}
+      </div>
+      <div class="item-quantity">
+        <button class="quantity-btn minus" data-id="${escapeHtml(item.size ? `${item.title} (${item.size})` : item.title)}">-</button>
+        <span class="quantity-value">${item.quantity}</span>
+        <button class="quantity-btn plus" data-id="${escapeHtml(item.size ? `${item.title} (${item.size})` : item.title)}">+</button>
+      </div>
+    `;
+    
+    cartItemsEl.appendChild(cartItem);
+  });
+  
+  // Add event listeners to quantity buttons
+  document.querySelectorAll('.quantity-btn.plus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const itemKey = e.target.getAttribute('data-id');
+      if (itemKey.includes('(') && itemKey.includes(')')) {
+        // This is a sized item
+        const match = itemKey.match(/(.*) \((.*)\)/);
+        if (match) {
+          const itemTitle = match[1];
+          const size = match[2];
+          const item = cart[itemKey];
+          if (item) {
+            addToCartWithSize(itemTitle, item.price.toString(), size);
+          }
+        }
+      } else {
+        addToCart(itemKey);
+      }
+    });
+  });
+  
+  document.querySelectorAll('.quantity-btn.minus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const itemKey = e.target.getAttribute('data-id');
+      removeFromCart(itemKey);
+    });
+  });
+  
+  cartTotalEl.textContent = `${total} сом`;
+  checkoutBtn.disabled = false;
+}
+
+// Checkout function
+function checkout() {
+  if (Object.keys(cart).length === 0) return;
+  
+  alert(`Заказ оформлен! Сумма: ${cartTotalEl.textContent}`);
+  clearCart();
+}
+
+// basic escape
+function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m] }) }
+
+// --- Excel import handling ---
+const fileInput = document.getElementById('fileInput');
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = e.target.result;
+      const workbook = XLSX.read(data, {type:'array'});
+      // We'll read the first sheet
+      const firstSheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheetName];
+      // Convert to JSON (header row used)
+      const raw = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      // Expected columns: Категория | Название | Описание | Цена | ФотоURL
+      const parsed = raw.map(row => ({
+        category: row['Категория'] || row['Category'] || row['Категория ' ] || 'Прочее',
+        title: row['Название'] || row['Name'] || row['Название ' ] || 'Без названия',
+        desc: row['Описание'] || row['Description'] || '',
+        price: (row['Цена'] || row['Price'] || '').toString(),
+        img: row['ФотоURL'] || row['Фото'] || row['Image'] || ''
+      }));
+      if(parsed.length===0) { alert('Excel пуст или не соответствует формату. Убедитесь, что есть заголовки: Категория, Название, Описание, Цена, ФотоURL'); return; }
+      menu = parsed;
+      computeCategories();
+      renderCategories();
+      renderMenu();
+      saveMenuToStorage(menu);
+      alert('Меню успешно загружено и сохранено.');
+    }catch(err){
+      console.error(err);
+      alert('Ошибка при разборе файла: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// --- PIN flow ---
+const pinBtn = document.getElementById('pinBtn');
+const modal = document.getElementById('modal');
+const pinOk = document.getElementById('pinOk');
+const pinCancel = document.getElementById('pinCancel');
+const pinInput = document.getElementById('pinInput');
+
+pinBtn.onclick = () => showModal();
+pinCancel.onclick = () => hideModal();
+pinOk.onclick = () => {
+  const v = (pinInput.value || '').trim();
+  if(v === PIN_CODE){
+    hideModal();
+    // trigger file input
+    fileInput.click();
+  } else {
+    alert('Неверный PIN.');
+  }
+};
+pinInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') pinOk.click() });
+
+// file input change
+fileInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  handleFile(f);
+  // reset input
+  fileInput.value = '';
+});
+
+// --- Export to standalone HTML with embedded data ---
+// Note: the export button is commented out in the HTML. Guard the handler so
+// the script doesn't throw if the element is not present.
+const exportBtn = document.getElementById('exportBtn');
+if (exportBtn) {
+  exportBtn.onclick = () => {
+    try{
+      const exportHtml = buildStandaloneHtml(menu);
+      const blob = new Blob([exportHtml], {type:'text/html;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+  a.download = 'qr-menu-export.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }catch(e){
+      console.error(e);
+      alert('Ошибка экспорта: ' + e.message);
+    }
+  };
+}
+
+function buildStandaloneHtml(menuData){
+  // Safer DOM-based generation of standalone HTML to avoid template literal / script-closing issues.
+  const doc = document.implementation.createHTMLDocument('SABR');
+
+  // head
+  const metaCharset = doc.createElement('meta'); metaCharset.setAttribute('charset','utf-8');
+  const metaView = doc.createElement('meta'); metaView.name = 'viewport'; metaView.content = 'width=device-width,initial-scale=1';
+  const title = doc.createElement('title'); title.textContent = 'QR Menu — Экспорт';
+  const style = doc.createElement('style');
+  style.textContent = `
+  :root{
+    --brown: #4B2E2E;
+    --gold: #CFAF70;
+    --beige: #F5F5DC;
+    --card-bg: rgba(255,255,255,0.95);
+    --muted: #6b5b55;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(160deg, #fffaf0 0%, #f3efe8 50%, #efe6db 100%);
+    color: var(--brown);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:24px;
+  }
+  .container{
+    max-width:1100px;
+    margin:0 auto;
+  }
+
+  header{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .brand{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .logo{
+    width:64px;height:64px;border-radius:12px;
+    background: linear-gradient(135deg,var(--brown),#3e2929);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--beige);font-weight:700;font-size:20px;
+    box-shadow:0 6px 18px rgba(75,46,46,0.18);
+  }
+  h1{margin:0;font-size:20px}
+  .sub{font-size:13px;color:var(--muted)}
+
+  /* categories */
+  .cats{
+    display:flex;
+    gap:10px;
+    margin:10px 0 20px 0;
+    flex-wrap:wrap;
+    position: sticky;
+    top: 10px;
+    z-index: 10;
+    background: rgba(255, 250, 240, 0.9);
+    padding: 10px;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+  }
+  .cat{
+    padding:8px 12px;border-radius:999px;background:linear-gradient(180deg,var(--beige),rgba(255,255,255,0.9));
+    border:1px solid rgba(75,46,46,0.06);
+    cursor:pointer;font-weight:600;color:var(--brown);
+    box-shadow: 0 6px 12px rgba(203,175,112,0.06);
+    transition: all 0.3s ease;
+  }
+  .cat.active{box-shadow:0 8px 18px rgba(203,175,112,0.18);transform:translateY(-3px); background:linear-gradient(180deg,var(--gold),#dfb86d); color: var(--brown);}
+
+  /* grid */
+  .category-section {
+    margin: 40px 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--gold);
+    scroll-margin-top: 100px;
+  }
+  .category-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--brown);
+    margin: 0;
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+  }
+  .category-title:before {
+    content: "";
+    display: block;
+    width: 16px;
+    height: 16px;
+    background: var(--gold);
+    border-radius: 50%;
+    margin-right: 12px;
+  }
+  
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+    margin-bottom: 30px;
+  }
+  .card{
+    background:var(--card-bg);
+    border-radius:14px;padding:12px;
+    box-shadow: 0 10px 30px rgba(75,46,46,0.06);
+    display:flex;gap:12px;align-items:flex-start;
+    transition:transform .18s ease, box-shadow .18s ease;
+    border:1px solid rgba(75,46,46,0.03);
+  }
+  .card:hover{transform:translateY(-6px); box-shadow:0 20px 40px rgba(75,46,46,0.09);}
+  .thumb{width:96px;height:72px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#eee;display:flex;align-items:center;justify-content:center}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .meta{flex:1}
+  .title{font-weight:700;margin:0 0 6px 0}
+  .desc{font-size:13px;color:var(--muted);margin:0 0 8px 0}
+  .price{font-weight:800;color:var(--brown);font-size:16px}
+
+  /* responsive tweaks */
+  @media (max-width:600px){
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+    .cats {
+      position: static;
+      overflow-x: auto;
+      padding-bottom: 5px;
+      justify-content: flex-start;
+    }
+    .cat {
+      white-space: nowrap;
+    }
+    .category-title {
+      font-size: 20px;
+    }
+  }
+  `;
+
+  doc.head.appendChild(metaCharset);
+  doc.head.appendChild(metaView);
+  doc.head.appendChild(title);
+  doc.head.appendChild(style);
+
+  // body structure
+  const container = doc.createElement('div'); container.className = 'container';
+  
+  // Header
+  const header = doc.createElement('header');
+  const brand = doc.createElement('div'); brand.className = 'brand';
+  const logo = doc.createElement('div'); logo.className = 'logo'; logo.textContent = 'QR';
+  const brandText = doc.createElement('div');
+  const h1 = doc.createElement('h1'); h1.textContent = 'SABR';
+  const sub = doc.createElement('div'); sub.className = 'sub'; sub.textContent = 'Доброму гостю хозяин рад';
+  
+  brandText.appendChild(h1);
+  brandText.appendChild(sub);
+  brand.appendChild(logo);
+  brand.appendChild(brandText);
+  header.appendChild(brand);
+  container.appendChild(header);
+  
+  // Categories navigation
+  const catsDiv = doc.createElement('div'); catsDiv.id = 'categories'; catsDiv.className = 'cats';
+  container.appendChild(catsDiv);
+  
+  // Menu content
+  const main = doc.createElement('main'); main.id = 'menu-content';
+  container.appendChild(main);
+  
+  doc.body.appendChild(container);
+
+  // embedded JSON
+  const scriptJson = doc.createElement('script');
+  scriptJson.type = 'application/json';
+  scriptJson.id = 'embedded-data';
+  // Use textContent so closing tags can't break outer script
+  scriptJson.textContent = JSON.stringify(menuData);
+  doc.body.appendChild(scriptJson);
+
+  // renderer script (as text node)
+  const script = doc.createElement('script');
+  script.textContent = `
+  (function(){
+    function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m] }) }
+    
+    const menu = JSON.parse(document.getElementById('embedded-data').textContent || '[]');
+    const menuContent = document.getElementById('menu-content');
+    const catsEl = document.getElementById('categories');
+    
+    if(menu.length===0){ 
+      menuContent.innerHTML = '<div>Меню пусто.</div>'; 
+      return;
+    }
+    
+    // Compute categories
+    const s = new Set(menu.map(m => m.category || 'Прочее'));
+    const categories = ['Все', ...Array.from(s)];
+    
+    // Render categories navigation
+    catsEl.innerHTML='';
+    categories.forEach(cat=>{
+      const btn = document.createElement('button');
+      btn.className='cat' + (cat==='Все' ? ' active' : '');
+      btn.textContent = cat;
+      btn.onclick = () => {
+        document.querySelectorAll('.cat').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Scroll to category
+        if (cat === 'Все') {
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          // Scroll to category section
+          const categoryElement = document.getElementById('category-' + cat.replace(/\\s+/g, '-'));
+          if (categoryElement) {
+            const yOffset = -80; // Offset for sticky header
+            const y = categoryElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+          }
+        }
+      };
+      catsEl.appendChild(btn);
+    });
+    
+    // Group items by category
+    const groupedItems = {};
+    menu.forEach(item => {
+      const category = item.category || 'Прочее';
+      if (!groupedItems[category]) {
+        groupedItems[category] = [];
+      }
+      groupedItems[category].push(item);
+    });
+    
+    // Render each category section
+    for (const category in groupedItems) {
+      // Create category section
+      const categorySection = document.createElement('div');
+      categorySection.className = 'category-section';
+      categorySection.id = 'category-' + category.replace(/\\s+/g, '-');
+      
+      const categoryTitle = document.createElement('h2');
+      categoryTitle.className = 'category-title';
+      categoryTitle.textContent = category;
+      
+      categorySection.appendChild(categoryTitle);
+      menuContent.appendChild(categorySection);
+      
+      // Create grid for items in this category
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      
+      // Render items in this category
+      groupedItems[category].forEach(item=>{
+        const card = document.createElement('article');
+        card.className='card';
+        card.innerHTML = '<div class="thumb"><img loading="lazy" src="'+(item.img||'')+'" alt="'+escapeHtml(item.title)+'" onerror="this.src=\\'https://via.placeholder.com/120x90?text=Фото\\'"></div>'
+          + '<div class="meta">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center">'
+          + '<h4 class="title">'+escapeHtml(item.title)+'</h4>'
+          + '<div class="price">'+escapeHtml(item.price)+' сом</div>'
+          + '</div>'
+          + '<p class="desc">'+escapeHtml(item.desc || '')+'</p>'
+          + '</div>';
+        grid.appendChild(card);
+      });
+      
+      menuContent.appendChild(grid);
+    }
+  })();
+  `;
+  doc.body.appendChild(script);
+
+  // Serialize document to string
+  return '<!doctype html>\n' + doc.documentElement.outerHTML;
+}
+
+// --- Init ---
+computeCategories();
+renderCategories();
+renderMenu();
+renderCart();
+
+// Add event listeners
+clearCartBtn.addEventListener('click', clearCart);
+checkoutBtn.addEventListener('click', checkout);
+document.getElementById('sizeCancel').addEventListener('click', hideSizeModal);
+
+// Добавляем переменную для хранения выбранного стола
+let selectedTable = null;
+
+// Функция для показа модального окна выбора стола
+function showTableModal() {
+  document.getElementById('tableModal').style.display = 'flex';
+}
+
+// Функция для скрытия модального окна выбора стола
+function hideTableModal() {
+  document.getElementById('tableModal').style.display = 'none';
+}
+
+// Функция для выбора стола
+function selectTable(tableNumber) {
+  selectedTable = tableNumber;
+  
+  // Удаляем предыдущий выбор стола из корзины, если был
+  Object.keys(cart).forEach(key => {
+    if (key.startsWith('Стол ')) {
+      delete cart[key];
+    }
+  });
+  
+  // Добавляем выбранный стол в корзину
+  const tableKey = `Стол ${tableNumber}`;
+  cart[tableKey] = {
+    title: tableKey,
+    price: 0,
+    quantity: 1
+  };
+  
+  saveCartToStorage(cart);
+  renderCart();
+  hideTableModal();
+}
+
+// Функция для отправки заказа в Telegram
+async function sendOrderToTelegram() {
+  if (!selectedTable) {
+    alert('Пожалуйста, выберите стол перед оформлением заказа.');
+    return;
+  }
+  
+  if (Object.keys(cart).length === 0) {
+    alert('Корзина пуста. Добавьте блюда перед оформлением заказа.');
+    return;
+  }
+  
+  try {
+    // Формируем текст сообщения
+    let message = `Новый заказ!\nСтол: ${selectedTable}\n\n`;
+    let total = 0;
+    
+    Object.values(cart).forEach(item => {
+      if (!item.title.startsWith('Стол ')) {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        message += `${item.title}${item.size ? ` (${item.size})` : ''} - ${item.quantity} x ${item.price} = ${itemTotal} сом\n`;
+      }
+    });
+    
+    message += `\nИтого: ${total} сом`;
+    
+    // Отправляем сообщение в Telegram
+    const botToken = '7984894892:AAFltrWRvpN57PiBaEAdyEGO0stGA1c_8ys';
+    const chatId = '1645806525';
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message
+      })
+    });
+    
+    if (response.ok) {
+      alert('Заказ успешно отправлен!');
+      clearCart();
+      selectedTable = null;
+    } else {
+      throw new Error('Ошибка при отправке заказа');
+    }
+  } catch (error) {
+    console.error('Ошибка отправки заказа:', error);
+    alert('Произошла ошибка при отправке заказа. Пожалуйста, попробуйте еще раз.');
+  }
+}
+
+// Изменяем функцию checkout для отправки в Telegram
+function checkout() {
+  sendOrderToTelegram();
+}
+
+// Инициализация после загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+  // ... (остальная инициализация) ...
+  
+  // Добавляем обработчики для функционала выбора стола
+  document.getElementById('chooseTableBtn').addEventListener('click', showTableModal);
+  document.getElementById('tableCancel').addEventListener('click', hideTableModal);
+  
+  // Обработчики для кнопок выбора стола
+  document.querySelectorAll('.table-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tableNumber = e.target.getAttribute('data-table');
+      selectTable(tableNumber);
+    });
+  });
+  
+  // ... (остальные обработчики) ...
+});
+
+// ... (остальной код без изменений) ...
+
+</script>
+</body>
+</html>
